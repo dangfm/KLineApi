@@ -50,7 +50,15 @@ function showPageList($lines,$page,$pageSize)
 	}
 
 	$start = count($lines) - $page * $pageSize;
-	if ($start<=0) {
+	if($start<=0 && $page>1){
+		return;
+	}
+	if($start<=0 && $page==1){
+		$start = 0;
+		$pageSize = count($lines);
+	}
+	if($start<$pageSize){
+		$pageSize = $start;
 		$start = 0;
 	}
 
@@ -108,22 +116,25 @@ function readMinuteLine($code,$fq){
 	// echo $contents;
     $contents = json_decode($contents,true);
     $contents = formatMinuteDatas($contents,$code);
-    $redisLine = readRedisMinLine($code);
+
+	return $contents;
+}
+
+function addRedisMinuteline($minutedata,$code){
+	$contents = array();
+	$redisLine = readRedisMinLine($code);
     // 查找最新日期
-    if (count($contents)>0 && count($redisLine)>0) {
-    	$last = $contents[count($contents)-1];
+    if (count($minutedata)>0 && count($redisLine)>0) {
+    	$last = $minutedata[count($minutedata)-1];
     	$lastDate = explode(",",$last)[0];
 
     	$redislast = $redisLine[count($redisLine)-1];
     	$redislastDate = explode(",",$redislast)[0];
     	if ($lastDate!=$redislastDate) {
-    		// 拼接到最后
-    		$contents = array_merge($contents,$redisLine);
+			// 拼接到最后
+    		$contents = $redisLine ;// array_merge($contents,$redisLine);
     	}
-    }
-    
-    
-
+	}
 	return $contents;
 }
 
@@ -176,20 +187,24 @@ function readRedisMinLine($code){
 				
 				$row = explode(",",$linestr);
 				if(count($row)>=8){
-					$vol = ($row[6]-$lastV);
-					if ($vol<=0) {
-						$vol = 0;
-					}
-					$volPrice = $row[7];
+					
 					if(strpos($code,"sh000")!==false || strpos($code,"sz399")!==false){
 						// $vol = $vol/100;
 						// $volPrice = $volPrice/10;
 					}else{
 						// $vol = $vol/100;
 						// $volPrice = $volPrice/100;
+						// if(count($row)>=9){
+						// 	$lastV = $row[8];
+						// }
 					}
-
 					
+
+					$vol = ($row[6]-$lastV);
+					if ($vol<=0) {
+						$vol = 0;
+					}
+					$volPrice = $row[7];
 					
 					$newRow = array(
 					$row[0],
@@ -201,13 +216,14 @@ function readRedisMinLine($code){
 					$vol,
 					$volPrice
 					);
-					if ($row[6]>0) {
-						$lastV=$row[6];
-					}
+					
 					
 					$linestr = implode(",",$newRow);
 
 					if($lastDate==$row[0]){
+						if ($row[6]>0) {
+							$lastV=$row[6];
+						}
 						// echo $lastDate."=".$row[0];
 						array_push($stocks,$linestr);
 						$lastRow = $newRow;
@@ -215,6 +231,7 @@ function readRedisMinLine($code){
 						if ($filed<=$lastTime) {
 							$newRow = $lastRow;
 							$newRow[1]=$filed;
+							$newRow[6]=0;
 							$linestr = implode(",",$newRow);
 							array_push($stocks,$linestr);
 							$lastRow = $newRow;
@@ -761,7 +778,8 @@ function returnTimeLineData($datas,$day){
 		// $datas = implode(, $datas);
 		// var_dump($datas);
 		$newLines = array();
-		$count = $day * 242;
+		$count = $day * 241;
+		
 		// echo count($datas);
 		for ($i=count($datas)-1;$i>=0;$i--) {
 			$rs = $datas[$i];

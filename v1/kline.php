@@ -157,10 +157,19 @@ if ($cycle == "timeline") {
 	$lines = readRedisMinLine($code,$fq);
 	if (count($lines)<=0) {
 		$lines = readMinuteLine($code,$fq);
-
 	}
 	// var_dump($lines);
-	$lines = returnTimeLineData($lines,1);
+	$lines = returnTimeLineData($lines,1,count($lines));
+	// 当前实时行情日期是否对应
+	$jsonstr = $redis->get($code);
+	$jsonstr = str_replace('\"', '', $jsonstr);
+	$jsonstr = json_decode($jsonstr,true);
+	$lastDate = $jsonstr["lastDate"];
+	$last = $lines[count($lines)-1];
+	$lastDate_2 = explode(",",$last)[0];
+	// if($lastDate!=$lastDate_2){
+	// 	$lines = array($lastDate,$jsonstr["price"],$jsonstr["highPrice"],$jsonstr["lowPrice"],$jsonstr["closePrice"],$jsonstr["volume"],$jsonstr["volumePrice"]);
+	// }
 	showPageList($lines,$page,$pageSize);
 	exit;
 }
@@ -173,7 +182,35 @@ if ($cycle == "timeline5") {
 	$code = strtoupper($code);
 	// 读取一分钟线数据
 	$lines = readMinuteLine($code,$fq);
-	$lines = returnTimeLineData($lines,5);
+	$lines = returnTimeLineData($lines,1);
+	// var_dump($lines);
+	// 读取redis
+	$redislines = addRedisMinuteline($lines,$code);
+	if(count($redislines)>0){
+		$redislines = returnTimeLineData($redislines,1);
+		// 当前实时行情日期是否对应
+		$redis->getRedis()->select(0);
+		$jsonstr = $redis->get(strtolower($code));
+		// var_dump($jsonstr);
+		$jsonstr = str_replace('\"', '', $jsonstr);
+		$jsonstr = json_decode($jsonstr,true);
+		$lastDate = $jsonstr["lastDate"];
+		$lastDate = str_replace("-","",$lastDate);
+		$last = $lines[0];
+		$lastDate_2 = explode(",",$last)[0];
+		// echo $lastDate."=".$lastDate_2;
+		if($lastDate!=$lastDate_2){
+			$lines = readMinuteLine($code,$fq);
+			$lines = returnTimeLineData($lines,4);
+			$lines = array_merge($lines,$redislines);
+		}else{
+			$lines = readMinuteLine($code,$fq);
+			$lines = returnTimeLineData($lines,5);
+		}
+	}else{
+		$lines = readMinuteLine($code,$fq);
+		$lines = returnTimeLineData($lines,5);
+	}
 	showPageList($lines,$page,$pageSize);
 	exit;
 }
