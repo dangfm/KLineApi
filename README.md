@@ -27,6 +27,6 @@
 
 # 在线接口文档
 
-http://www.agujl.com/quotes/
+http://www.gjl.info/quotes/
 
   
